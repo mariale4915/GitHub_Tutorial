@@ -1,2 +1,4 @@
 #This document is just for practicing pushing and pull edits in github
 #Write something here!
+
+#Hi This is Gina! Git your GitHub on :)
