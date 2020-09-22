@@ -2,8 +2,7 @@ library(tidyverse)
 library(tidyr)
 library(ggplot2)
 
-#test this file new comments
-setwd()
+#setwd("GitHub_Tutorial/ordination methords/")
 
 meso_all<- read.csv("S&R3_Meso_freq.txt",sep= "\t", header=TRUE)
 
@@ -76,14 +75,10 @@ initial<-apply(data.frame(initial[,c(-1:-4)]), 2, mean)
 ggplot(data = data.frame(Freq=initial),aes(x=Freq))+geom_histogram(fill="white",color="black")+theme_bw()
 
 #### Now we want to divide every strain frequency by the initial mean frequency and take the log 2 () to calculate "fitness": log2(selected_freq/inital_means). 
-# log2(selected_freq/inital_means). 
-#I can't for the life of me at the moment figure out how to do this function in tidyR 
-#so converting to a dataframes that work with vectorized function and then reassembling the tibble.
+# log2(selected_freq/inital_means). I can't for the life of me at the moment figure out how to do this function in tidyR so converting to a dataframes that work with vectorized function and then reassembling the tibble.
 # Can one of you figure out a solution in TidyR?
 
 meso_fit<-as_tibble(cbind(meso_sub[,c(1:4)],log2(as.matrix(data.frame(meso_sub[,c(-1:-4)]))/initial)))
-
-
 #Put temperatures in order and rename for graphing
 
 meso_fit %>% mutate(Trt = factor(Trt, levels= c("F4","F","F32"),labels= c("4C","22C","32C"))) -> meso_fit
@@ -98,13 +93,6 @@ ggplot(data = fit, aes(x=fitness,color=Trt))+
   scale_color_manual(values = mycols)+
   theme_bw()
 
-ggplot(data = fit%>%filter(Trt=="4C"), aes(x=fitness,color=Trt))+
-  geom_histogram(fill="white", position="identity", alpha=.25,bins=50,lwd=1.2)+
-  scale_color_manual(values = mycols)+
-  theme_bw()
-
-
-
 ### NOW lets run FINALLY run a PCA #####
 library(FactoMineR)
 library(factoextra)
@@ -118,12 +106,12 @@ res.PCA<-PCA(meso_fit[,c(-1:-4)],graph = FALSE)
 get_eigenvalue(res.PCA)
 # Graph the Eigenvalues. In this case, the vast majority (~80%) of the variation in the data can be explained by the first two dimensions. 
 fviz_eig(res.PCA)
-#Quick combined graph
-fviz_pca_biplot(res.PCA, axes = c(3,4), habillage = meso_fit$Trt, palette = mycols)
+#Quick combined graph. The first argument is the data object. The axes argument denotes which PCA dimensions to plot, the habillage argument group sample groups (e.g. Trt), and the palette denotes your colors. Use help('fviz_pca_biplot') to see more.
+fviz_pca_biplot(res.PCA, axes = c(1, 2), habillage = meso_fit$Trt, palette = mycols)
 
 #### You can also plot samples (individuals) and strains (variables) seperately
-fviz_pca_ind(res.PCA,habillage = meso_fit$Trt, palette = mycols)
-fviz_pca_var(res.PCA)
+fviz_pca_ind(res.PCA,axes = c(1, 2),habillage = meso_fit$Trt, palette = mycols)
+fviz_pca_var(res.PCA,axes = c(1, 2))
 
 ### We can get an idea of which axis each variable is loaded on with the cos2 values in the PCA variable results. 
 # Higher values mean a greater contribution to that dimension.
@@ -182,36 +170,3 @@ ordispider(rda1, meso_fit$Trt, lwd=1,label =FALSE,col=paste(mycols),cex=.5)
 # Add a legend
 legend("topleft", legend = levels(meso_fit$Trt), bty = "n",
        col = mycols, pch = 21, pt.bg = mycols,)
-
-# thinking about questions
-increase4c<-meso_fit%>%filter(Trt=="4C")%>%
-  filter_at(vars(5:72), any_vars(. > 0))
-
-increase32c<-meso_fit%>%filter(Trt=="32C")%>%
-  filter_at(vars(5:72), any_vars(. > 0))
-#this way also works 
-meso_fit[colSums(meso_fit[,c(-1:-4)] > 0)]
-
-# which environment is most selective?
-
-ggplot(data = fit%>%filter(Trt=="4C"), aes(x=fitness,color=Trt))+
-  geom_histogram(fill="white", position="identity", alpha=.25,bins=50,lwd=1.2)+
-  scale_color_manual(values = mycols)+
-  theme_bw()
-
-fit%>%group_by(Trt)%>%summarise("min"=min(fitness), "max"=max(fitness), "sd"=sd(fitness), "mean"=mean(fitness), "median"=median(fitness))%>%
-  mutate("range"= max-min, "skew"= mean-median)
-  
-# which strains are generalists? well in all environments?
-
-generalists<-fit%>%filter(fitness>0)%>%ungroup() %>%
-  group_by(strain) %>%
-  filter(n() == 3)
-
-generalists[order(winners$strain),]
-generalists[1:21,]
-
-specialists<-fit%>%filter(fitness>2)%>%ungroup() %>%
-  group_by(strain) %>%
-  filter(n() == 1)
-specialists
