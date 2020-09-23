@@ -1,3 +1,5 @@
+#Authors: Liana T. Burghardt, Regina B. Bledsoe, Maria Gil Polo, Jenn Harris, Rebecca Fudge
+
 library(tidyverse)
 library(tidyr)
 library(ggplot2)
@@ -214,3 +216,108 @@ specialists<-fit%>%filter(fitness>2)%>%ungroup() %>%
   group_by(strain) %>%
   filter(n() == 1)
 specialists
+
+
+#9. How do these results differ from the inferences we would make from ordination methods that do not require a normally distributed outcome. What would happen if we used NMDS or PCoA to analyze the raw frequencies?
+
+#Principal coordinates analysis (metric multidimensional scaling) or PCoA is a way to visually represent compositional dissimilarity between sites represented by multiple count variables (species) at each site. PCoA is a way to represent multivariate data in a low-dimension Euclidean (metric, based on eigenvalues) space. PCoA produces a set of uncorrelated (orthogonal) axes to summarize the variability in the data set. This is similar to PCA, but PCoA does not assume that data is of a certain distribution and uses a dissimilarity matrix such as Bray-Curtis, Sorensen, or Jaccard as input. 
+
+#Using the meso_sub dataset, first convert the dataset to a dissimilarity matrix
+#We use the vegan function for this... and will use the Bray-Curtis method however there are more options for distance matrix. https://www.rdocumentation.org/packages/vegan/versions/2.4-2/topics/vegdist
+
+#First we need and site by species matrix so using meso-sub, first we need to set treatments (the pool column in meso_sub dataset) as the rownames
+#Assign pool column to rownames
+rownames(meso_sub)=meso_sub$pool
+#Calculate bray-curtis matrix
+meso_sub_dist<-vegdist(meso_sub[,-c(1:4)], method="bray")
+
+#Bray-Curtis ranks site similarity from 0 to 1, with 0 meaning the two sites are similar and 1 meaning the two sites are dissimilar. This value is used as a distance in PCoA analysis. 
+
+#Calculate PCoA components
+meso_sub_dist_pcoa <- cmdscale(meso_sub_dist, k=3, eig=TRUE, add=FALSE)
+#Calculate variation for each axis
+axis1 <- round(meso_sub_dist_pcoa$eig[1] / sum(meso_sub_dist_pcoa$eig), 3) * 100
+axis1
+
+axis2 <- round(meso_sub_dist_pcoa$eig[2] / sum(meso_sub_dist_pcoa$eig), 3) * 100
+axis2 
+
+#This is just the sum... how much variation in composition is explained by both axes.
+sum.eiga <- sum(axis1, axis2)
+sum.eiga
+
+#make dataframe with points and add row names, this is what we will use to make plots with
+pcoa_points <- as.data.frame(meso_sub_dist_pcoa$points)
+rownames(pcoa_points) <- meso_sub$pool
+#Add meta data to points and make factors
+pcoa_points <- cbind(meso_sub[,c(2:4)], pcoa_points)
+pcoa_points$Trt <- as.factor(pcoa_points$Trt)
+
+#Use ggplot to plot pcoa_points
+pcoa_temp <- ggplot(pcoa_points, aes(x=V1, y=V2, color=Trt)) + 
+  geom_point(aes(color=Trt)) + 
+  scale_color_manual(values = c("blue", "green", "red"), labels = c("4C", "22C", "32C"))+
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"))+
+  xlab("PCoA 1 (74.6%)") + ylab("PCoA 2 (19.7%)") + 
+  labs(colour="Treatment") +
+  ggtitle("PCoA of Temperature Treatments")+
+  theme(legend.position="right")
+
+pcoa_temp
+
+#Save a copy of the plot. 
+ggsave("figures/pcoa_temp.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6.3, height=4.4, dpi=900, limitsize=TRUE,bg="transparent")
+
+
+###Here I add time as a factor to see how over time the community composition changes within temperature treatments. 
+meso_all %>% filter(Trt %in% c("F","F32","F4")) -> meso_sub_time
+meso_sub_time<-as.data.frame(meso_sub_time)
+
+#Assign pool to rownames
+rownames(meso_sub_time)=meso_sub_time$pool
+#Calculate bray-curtis matrix
+meso_sub_time_dist<-vegdist(meso_sub_time[,-c(1:4)], method="bray")
+
+#Calculate PCoA components
+meso_sub_time_dist_pcoa <- cmdscale(meso_sub_time_dist, k=3, eig=TRUE, add=FALSE)
+#Calculate variation for each axis 
+axis1 <- round(meso_sub_time_dist_pcoa$eig[1] / sum(meso_sub_time_dist_pcoa$eig), 3) * 100
+axis1
+
+axis2 <- round(meso_sub_time_dist_pcoa$eig[2] / sum(meso_sub_time_dist_pcoa$eig), 3) * 100
+axis2 
+
+sum.eiga <- sum(axis1, axis2)
+sum.eiga
+
+#make dataframe with points and add row names 
+pcoa_points <- as.data.frame(meso_sub_time_dist_pcoa$points)
+rownames(pcoa_points) <- meso_sub_time$pool
+#Add meta data to points and make factors
+pcoa_points <- cbind(meso_sub_time[,c(2:4)], pcoa_points)
+pcoa_points$Trt <- as.factor(pcoa_points$Trt)
+pcoa_points$Time <- as.factor(pcoa_points$Time)
+
+#Use ggplot to plot pcoa_points
+pcoa_time <- ggplot(pcoa_points, aes(x=V1, y=V2, color=Trt, shape=Time)) + 
+  geom_point(aes(color=Trt, shape=Time), size=4, stroke=1) + 
+  scale_color_manual(values = c("blue", "green", "red"), labels = c("4C", "22C", "32C"))+
+  scale_shape_manual(values = c(1,12,19))+
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"))+
+  xlab("PCoA 1 (62.2%)") + ylab("PCoA 2 (23.1%)") + 
+  labs(colour="Treatment", shape="Time") +
+  ggtitle("PCoA with Temp and Time")+
+  theme(legend.position="right")
+
+pcoa_time
+
+ggsave("figures/pcoa_time.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6.3, height=4.4, dpi=900, limitsize=TRUE,bg="transparent")
+
+#To validate to what we see, I usually pair this type of plot with a PERMANOVA analysis
+meso_sub_time_ad <- adonis(meso_sub_time[,-c(1:4)] ~Trt+Time, method = "bray", data = meso_sub_time, perm=1000, set.seed=42)
+
+meso_sub_time_ad 
