@@ -7,7 +7,7 @@ setwd()
 
 meso_all<- read.csv("S&R3_Meso_freq.txt",sep= "\t", header=TRUE)
 
-# This is a big dataset comprised of 106 rows (102 mesocosms + 4 initial communties) and 69 columns.
+# This is a big dataset comprised of 106 rows (102 mesocosms + 4 initial communities) and 69 columns.
 
 dim(meso_all)
 
@@ -18,11 +18,11 @@ dim(meso_all)
 meso_all<-as_tibble(meso_all)
 meso_all
 
-# The first column is "pool" which has all the sample and treatment information coded into a single string seperated by underscores.
+# The first column is "pool" which has all the sample and treatment information coded into a single string separated by underscores.
 # Each additional column is an Ensifer strain. R puts an X in front of each name because a column name can't be a number  
 # Next, we will extract all the information from this column into three new columns to make it easy to filter to the data of interest
-# We use the dplyr function 'separate' and save the result to a overwrite the origonal dataset (meso_all). 
-# The first arguement is the data, the second the column we want to seperate, the third the names for those three new columns, fourth the character seperating the information (in this case an underscore), and the fifth is a logical arguement telling R to keep the original column.
+# We use the dplyr function 'separate' and save the result to a overwrite the original dataset (meso_all). 
+# The first argument is the data, the second the column we want to separate, the third the names for those three new columns, fourth the character seperating the information (in this case an underscore), and the fifth is a logical arguement telling R to keep the original column.
 #
 
 meso_all <- separate(data = meso_all,col = pool,into = c("Trt","Time","Rep"), sep="_", remove=FALSE)
@@ -31,7 +31,7 @@ meso_all
 # You will see that we still have the pool column but now we have three additional columns
 # We are interested in analyzing the Temperature treatments at 2.5 months here. So lets subset down to just those using the filter argument
 
-### The "pool" column contains all the information about each sample seperated by underscores ## 
+### The "pool" column contains all the information about each sample separated by underscores ## 
 # 3 temperature treatments: F= ~22C, F32 = 32C, F4 = 4C
 # All mesocosms were sampled at 1 timepoint: 2.5 months
 # Replicate numbers (between 11 and 15)
@@ -60,13 +60,13 @@ ggplot(data = freqs, aes(x=freq,color=Trt))+
   scale_color_manual(values = mycols)+
   theme_bw()
 
-# Okay, now we have strain frequencies for our 14 Treatments and timepoints of interest. Next step is to convert those frequencies into log2 fold changes from the initial frequences (or fitness)
+# Okay, now we have strain frequencies for our 14 Treatments and timepoints of interest. Next step is to convert those frequencies into log2 fold changes from the initial frequencies (or fitness)
 # To do that we need to grab our initial strain frequencies from the main data frame. All of these have a "Time" of "initial" 
 # Let's use the piping method I showed above
 
 meso_all %>% filter(Time =="initial") -> initial
 initial
-# Let's look at the initial data. There are four sequencing replicates of the initial community used to innoculate each mesocosm
+# Let's look at the initial data. There are four sequencing replicates of the initial community used to inoculate each mesocosm
 # You'll notice that the estimates are very similar across the replicates. 
 # Next, we need to calculate the mean frequency of each strain.We will use the apply function to do this. 
 
@@ -75,14 +75,13 @@ initial<-apply(data.frame(initial[,c(-1:-4)]), 2, mean)
 ##### Quick plot of the initial frequencies ########
 ggplot(data = data.frame(Freq=initial),aes(x=Freq))+geom_histogram(fill="white",color="black")+theme_bw()
 
-#### Now we want to divide every strain frequency by the initial mean frequency and take the log 2 () to calculate "fitness": log2(selected_freq/inital_means). 
-# log2(selected_freq/inital_means). 
+#### Now we want to divide every strain frequency by the initial mean frequency and take the log 2 () to calculate "fitness": log2(selected_freq/initial_means). 
+# log2(selected_freq/initial_means). 
 #I can't for the life of me at the moment figure out how to do this function in tidyR 
 #so converting to a dataframes that work with vectorized function and then reassembling the tibble.
 # Can one of you figure out a solution in TidyR?
 
 meso_fit<-as_tibble(cbind(meso_sub[,c(1:4)],log2(as.matrix(data.frame(meso_sub[,c(-1:-4)]))/initial)))
-
 
 #Put temperatures in order and rename for graphing
 
