@@ -314,6 +314,16 @@ meso_sub_time_ad <- adonis(meso_sub_time[,-c(1:4)] ~Trt+Time, method = "bray", d
 
 meso_sub_time_ad 
 
+# Question 4 ###
+
+# Access the Eigenvalues
+get_eigenvalue(res.PCA)
+### The principal components have variances (called eigenvalues) in decreasing order.
+#### Finding out the variance persent with get_eigenvalues, I find that PC3 explains 7% and PC4 explains 4% of the variation.
+
+#Plotting the Dim3 Dim4
+fviz_pca_biplot(res.PCA, habillage = meso_fit$Trt, palette = mycols, axes = c(3 , 4))
+
 # Question 5 ####
 install.packages ("moments")
 library (moments)
