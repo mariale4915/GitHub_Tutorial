@@ -184,39 +184,31 @@ ordispider(rda1, meso_fit$Trt, lwd=1,label =FALSE,col=paste(mycols),cex=.5)
 legend("topleft", legend = levels(meso_fit$Trt), bty = "n",
        col = mycols, pch = 21, pt.bg = mycols,)
 
-# thinking about questions
+#6. Which species are generalists? which are specailists?
+#these are the species that increase under 4c
 increase4c<-meso_fit%>%filter(Trt=="4C")%>%
   filter_at(vars(5:72), any_vars(. > 0))
 
+#species that increase under 32C
 increase32c<-meso_fit%>%filter(Trt=="32C")%>%
   filter_at(vars(5:72), any_vars(. > 0))
-#this way also works 
+
+#which species increase?
 meso_fit[colSums(meso_fit[,c(-1:-4)] > 0)]
-
-# which environment is most selective?
-
-ggplot(data = fit%>%filter(Trt=="4C"), aes(x=fitness,color=Trt))+
-  geom_histogram(fill="white", position="identity", alpha=.25,bins=50,lwd=1.2)+
-  scale_color_manual(values = mycols)+
-  theme_bw()
-
-fit%>%group_by(Trt)%>%summarise("min"=min(fitness), "max"=max(fitness), "sd"=sd(fitness), "mean"=mean(fitness), "median"=median(fitness))%>%
-  mutate("range"= max-min, "skew"= mean-median)
-  
-# which strains are generalists? well in all environments?
-
-generalists<-fit%>%filter(fitness>0)%>%ungroup() %>%
-  group_by(strain) %>%
+#####--------Question 6-------
+#Which strains are generalists? well in all environments? 
+#Jenn
+generalists<-fit%>%filter(fitness>0)%>%ungroup() %>% #species that increase
+  group_by(strain) %>% 
   filter(n() == 3)
-
-generalists[order(winners$strain),]
-generalists[1:21,]
+unique(generalists$strain)
+# these strains are all generalists because they increase under all conditions
 
 specialists<-fit%>%filter(fitness>2)%>%ungroup() %>%
   group_by(strain) %>%
   filter(n() == 1)
 specialists
-
+#these strains are all specialists because they increased more than (double?) but only in one condition
 
 #9. How do these results differ from the inferences we would make from ordination methods that do not require a normally distributed outcome. What would happen if we used NMDS or PCoA to analyze the raw frequencies?
 
@@ -347,6 +339,22 @@ range(high[,c(5:50)])
 # I couldn't figure out how to get the standard deviation or skewness to work.
 # Once I figure those out, I'll run the ANOVA.
 
+# I accidentally answered part of this question too -Jenn
+# I'll just include what I did here
+
+# 5. which environment is most selective?
+
+ggplot(data = fit%>%filter(Trt=="4C"), aes(x=fitness,color=Trt))+
+  geom_histogram(fill="white", position="identity", alpha=.25,bins=50,lwd=1.2)+
+  scale_color_manual(values = mycols)+
+  theme_bw()
+# right skewed distribution shows that most species decrease in abundance at 4C, and few are increases greatly
+
+fit%>%group_by(Trt)%>%summarise("min"=min(fitness), "max"=max(fitness), "sd"=sd(fitness), "mean"=mean(fitness), "median"=median(fitness))%>%
+  mutate("range"= max-min, "skew"= mean-median)
+#4c is right skewed because the median is smaller than the mean.
+#22c and 32c is also  right skewed because the median is smaller than the mean.
+#-Jenn
 
 # Question 8 ####
 
@@ -377,6 +385,6 @@ my_summary <- list("Temp Fitness Range" =
 
 # Should I run an ANOVA? I couldn't figure out how to do it, but will work on it.
 
-
+#------Question 10-----
 
 
