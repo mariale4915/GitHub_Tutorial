@@ -5,7 +5,7 @@ library(tidyr)
 library(ggplot2)
 
 #test this file new comments
-setwd()
+setwd("Documents/GitHub/GitHub_Tutorial/ordination methods/")
 
 meso_all<- read.csv("S&R3_Meso_freq.txt",sep= "\t", header=TRUE)
 
@@ -504,3 +504,85 @@ ordispider(rda1, meso_fit$Trt, lwd=1,label =FALSE,col=paste(mycols),cex=.5)
 # Add a legend
 legend("topleft", legend = levels(meso_fit$Trt), bty = "n",
        col = mycols, pch = 21, pt.bg = mycols,)
+
+# Question
+
+# Grab the temperature treatments
+meso_sub<-filter(meso_all,Trt %in% c("F","F32","F4"))
+
+# Calculate fitness
+meso_all %>% filter(Time =="initial") -> initial
+initial<-apply(data.frame(initial[,c(-1:-4)]), 2, mean)
+meso_fit<-as_tibble(cbind(meso_sub[,c(1:4)],log2(as.matrix(data.frame(meso_sub[,c(-1:-4)]))/initial)))
+
+#Put temperatures and times in order and rename for graphing and create a column the combined treatment
+
+meso_fit <-meso_fit %>% mutate(Trt = factor(Trt, levels= c("F4","F","F32"), labels= c("F4","F22","F32")),
+                               Time = factor(Time, levels= c("2wk","2.5m","6m"), labels= c("2wk","10wk","24wk")),
+                               Trt.Time = factor(paste(Trt,Time,sep="_"),levels=c("F4_10wk","F4_24wk","F22_2wk","F22_10wk","F22_24wk","F32_2wk","F32_10wk","F32_24wk")))
+meso_fit <-meso_fit %>% select(Trt.Time,everything())
+
+# Define a color and shape scheme
+mycols<-c("lightblue","darkblue","gold","goldenrod","darkgoldenrod","orange","orangered","red")
+myshapes<-c(15,16,17)
+
+# Save results to an object
+res.PCA<-PCA(meso_fit[,c(-1:-5)],graph = FALSE)
+# Access the Eigenvalues
+get_eigenvalue(res.PCA)
+
+#### You can also plot samples (individuals) and strains (variables) seperately
+fviz_pca_ind(res.PCA,axes = c(1,2),habillage = meso_fit$Trt.Time, palette = mycols)
+fviz_pca_ind(res.PCA,axes = c(3,4),habillage = meso_fit$Trt.Time, palette = mycols)
+
+#### Write a few different RDA Models
+rda1<-rda(meso_fit[,c(6:73)]~Trt*Time,meso_fit, scale=TRUE) #Full Model w/ interactions
+rda2<-rda(meso_fit[,c(6:73)]~Trt+Time,meso_fit, scale=TRUE) # Additive Model
+rda3<-rda(meso_fit[,c(6:73)]~Trt,meso_fit, scale=TRUE) # Treatment only
+rda4<-rda(meso_fit[,c(6:73)]~Time,meso_fit, scale=TRUE) # Time only
+
+# Rsquared gives you an overall idea of well the overall model adjusted for the number of predictors you have
+RsquareAdj(rda1)$adj.r.squared
+RsquareAdj(rda2)$adj.r.squared
+RsquareAdj(rda3)$adj.r.squared
+RsquareAdj(rda4)$adj.r.squared
+# Here the adjusted r-squared for the model allowing for an interaction between Time and Treatment has the highest rsquared even when penalized for the additional predictors
+
+# Run a permutational significance test for the explanatory variables in the model
+anova(rda1, step=1000, perm.max=1000, by= "terms") # The interaction is significant, but temperature has the largest effect
+anova(rda2, step=1000, perm.max=1000, by= "terms")
+
+#### Plot the FULL model #######
+
+#Make the window view wider
+par(mfrow=c(1,1),mar=c(3, 3, 2.1, 1))
+
+# Initiate the plot
+rdaplot <- ordiplot(rda1, display=c("wa"),cex=.5,cex.axis=.8,cex.lab=.9, tck=.02,mgp=c(1.7,.5,0),type="none",
+                    xlim=c(-2,2),ylim=c(-3,6),scaling=1, xlab=paste("RDA 1 (",round(summary(rda1)$cont$importance[2,1],2)*100,"% var.)",sep=""), 
+                    ylab=paste("RDA 2 (",round(summary(rda1)$cont$importance[2,2],2)*100,"% var.)",sep=""))
+# Add the points to it
+points(rda1,"wa", cex=0.8,col=mycols[meso_fit$Trt.Time],pch=myshapes[meso_fit$Time])
+# Add a circle around the points
+ordiellipse(ord = rda1, groups = meso_fit$Trt.Time, kind="se", conf=0.95, lwd=2,label =FALSE,draw = "polygon", col=paste(mycols), border=paste(mycols),lty=c(1) ,alpha=63)
+# Add lines from the Centroid 
+ordispider(rda1, meso_fit$Trt.Time, lwd=1,label =FALSE,col=paste(mycols),cex=.5)
+# Add a legend
+legend("topright", legend = levels(meso_fit$Trt.Time), bty = "n",
+       col = mycols, pch = c(16,17,15,16,17,15,16,17), pt.bg = mycols)
+
+##### Plot the Additive Model #######
+
+rdaplot <- ordiplot(rda2, display=c("wa"),cex=.5,cex.axis=.8,cex.lab=.9, tck=.02,mgp=c(1.7,.5,0),type="none",
+                    xlim=c(-2,2),ylim=c(-3,6),scaling=1, xlab=paste("RDA 1 (",round(summary(rda2)$cont$importance[2,1],2)*100,"% var.)",sep=""), 
+                    ylab=paste("RDA 2 (",round(summary(rda2)$cont$importance[2,2],2)*100,"% var.)",sep=""))
+# Add the points to it
+points(rda2,"wa", cex=0.8,col=mycols[meso_fit$Trt.Time],pch=myshapes[meso_fit$Time])
+# Add a circle around the points
+ordiellipse(ord = rda2, groups = meso_fit$Trt.Time, kind="se", conf=0.95, lwd=2,label =FALSE,draw = "polygon", col=paste(mycols), border=paste(mycols),lty=c(1) ,alpha=63)
+# Add lines from the Centroid 
+ordispider(rda2, meso_fit$Trt.Time, lwd=1,label =FALSE,col=paste(mycols),cex=.5)
+# Add a legend
+legend("topright", legend = levels(meso_fit$Trt.Time), bty = "n",
+       col = mycols, pch = c(16,17,15,16,17,15,16,17), pt.bg = mycols)
+### Hi! Liana
