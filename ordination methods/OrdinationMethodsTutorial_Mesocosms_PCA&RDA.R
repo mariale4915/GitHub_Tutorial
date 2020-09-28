@@ -184,7 +184,9 @@ ordispider(rda1, meso_fit$Trt, lwd=1,label =FALSE,col=paste(mycols),cex=.5)
 legend("topleft", legend = levels(meso_fit$Trt), bty = "n",
        col = mycols, pch = 21, pt.bg = mycols,)
 
-#6. Which species are generalists? which are specailists?
+#####--------Question 6-------
+#Which strains are generalists? well in all environments? 
+#Jenn
 #these are the species that increase under 4c
 increase4c<-meso_fit%>%filter(Trt=="4C")%>%
   filter_at(vars(5:72), any_vars(. > 0))
@@ -195,9 +197,7 @@ increase32c<-meso_fit%>%filter(Trt=="32C")%>%
 
 #which species increase?
 meso_fit[colSums(meso_fit[,c(-1:-4)] > 0)]
-#####--------Question 6-------
-#Which strains are generalists? well in all environments? 
-#Jenn
+#which are generalists?
 generalists<-fit%>%filter(fitness>0)%>%ungroup() %>% #species that increase
   group_by(strain) %>% 
   filter(n() == 3)
@@ -387,4 +387,120 @@ my_summary <- list("Temp Fitness Range" =
 
 #------Question 10-----
 
+# First we want only 2.5 month timepiont and our treatments of interest.
+# I'm picking clay and salt added
+meso_sub <- filter(meso_all,Trt %in% c("F","FNa","CY") & Time =="2.5m")
+meso_sub
 
+# Okay, now we have strain frequencies for our 14 Treatments and timepoints of interest.
+# Next step is to convert those frequencies into log2 fold changes from the initial frequencies (or fitness)
+# To do that we need to grab our initial strain frequencies from the main data frame. All of these have a "Time" of "initial" 
+meso_all %>% filter(Time =="initial") -> initial
+initial
+# Next, we need to calculate the mean frequency of each strain.We will use the apply function to do this. 
+initial<-apply(data.frame(initial[,c(-1:-4)]), 2, mean)
+
+# Quick plot of the initial frequencies
+ggplot(data = data.frame(Freq=initial),aes(x=Freq))+geom_histogram(fill="white",color="black")+theme_bw()
+
+#### Now we want to divide every strain frequency by the initial mean frequency and take the log 2 () to calculate "fitness": log2(selected_freq/initial_means). 
+# log2(selected_freq/initial_means). 
+# I can't for the life of me at the moment figure out how to do this function in tidyR 
+# so converting to a dataframes that work with vectorized function and then reassembling the tibble.
+# Can one of you figure out a solution in TidyR?
+
+meso_fit<-as_tibble(cbind(meso_sub[,c(1:4)],log2(as.matrix(data.frame(meso_sub[,c(-1:-4)]))/initial)))
+
+#Put temperatures in order and rename for graphing
+
+meso_fit <-meso_fit %>% mutate(Trt = factor(Trt, levels= c("F","FNa","CY"), labels= c("F","FNa","CY")))
+
+# Define a color scheme
+mycols<-c("darkblue","goldenrod","orangered")
+
+##### Quick Histogram (again with new treatments) ####
+fit<-meso_fit %>% group_by(Trt) %>% summarise_if(is.numeric,mean) %>% pivot_longer(-Trt,names_to= "strain",values_to = "fitness")
+ggplot(data = fit, aes(x=fitness,color=Trt))+
+  geom_histogram(fill="white", position="identity", alpha=.25,bins=50,lwd=1.2)+
+  scale_color_manual(values = mycols)+
+  theme_bw()
+
+ggplot(data = fit%>%filter(Trt=="F"), aes(x=fitness,color=Trt))+
+  geom_histogram(fill="white", position="identity", alpha=.25,bins=50,lwd=1.2)+
+  scale_color_manual(values = mycols)+
+  theme_bw()
+
+### NOW lets run FINALLY run a PCA (again) #####
+library(FactoMineR)
+library(factoextra)
+
+#Quick Graphs
+PCA(meso_fit[,c(-1:-4)],graph = TRUE)
+
+# Save results to an object
+res.PCA<-PCA(meso_fit[,c(-1:-4)],graph = FALSE)
+# Access the Eigenvalues
+get_eigenvalue(res.PCA)
+# Graph the Eigenvalues. In this case, the vast majority (~80%) of the variation in the data can be explained by the first two dimensions. 
+fviz_eig(res.PCA)
+#Quick combined graph
+fviz_pca_biplot(res.PCA, axes = c(3,4), habillage = meso_fit$Trt, palette = mycols)
+
+#### You can also plot samples (individuals) and strains (variables) seperately
+fviz_pca_ind(res.PCA,habillage = meso_fit$Trt, palette = mycols)
+fviz_pca_var(res.PCA)
+
+### We can get an idea of which axis each variable is loaded on with the cos2 values in the PCA variable results. 
+# Higher values mean a greater contribution to that dimension.
+var <- get_pca_var(res.PCA)
+var$cos2
+
+### We can quickly visulize this data with corrplot
+library(corrplot)
+corrplot(var$cos2, is.corr=FALSE,method = "shade",tl.cex = .5, tl.col = "black",cl.cex=.5,cl.align.text="l",cl.ratio= .75)
+# There are only a few strains highly loaded on the second dimension (e.g. strain 1660). This means that this strain increases/decreases along Dimension 2. 
+# What treatments are differentiated along Dim2? See if this is also the case in the RDA analysis below! 
+
+##### RDA! (again)######
+library(vegan)
+
+# Run the rda model rda(y~x,data,scale) 
+rda1<-rda(meso_fit[,c(5:72)]~Trt,meso_fit, scale=TRUE)
+
+# Quick plot of rda results
+ordiplot(rda1,type = "text")
+# This is called a triplot. 
+
+# Access all of the results
+summary(rda1)
+
+# Rsquared gives you an overall idea of well the overall model (your explanatory variables) did at explaining the variation in the data
+RsquareAdj(rda1)
+# In this example,treatments explain ~ 2/3rds of the variation in strain fitness. That is really high!
+
+# Run a permutational significance test for the explanatory variables in the model
+anova(rda1, step=1000, perm.max=1000, by= "terms")
+# Temperature treatment has a significant effect on strain fitness (P<.001)
+
+# Run a permutational significance test for each axis
+anova(rda1, step=1000, perm.max=1000, by= "axis")
+# In this case both of the RDA axis are highly significant.
+
+####### A much prettier visualization (again) ########
+
+#Make the window view wider
+par(mfrow=c(1,1),mar=c(3, 3, 2.1, 1))
+
+# Initiate the plot
+rdaplot <- ordiplot(rda1, display=c("wa"),cex=.5,cex.axis=.8,cex.lab=.9, tck=.02,mgp=c(1.7,.5,0),type="none",
+                    xlim=c(-2,2),ylim=c(-3,6),scaling=1, xlab=paste("RDA 1* (",round(summary(rda1)$cont$importance[2,1],2)*100,"% var.)",sep=""), 
+                    ylab=paste("RDA 2* (",round(summary(rda1)$cont$importance[2,2],2)*100,"% var.)",sep=""))
+# Add the points to it
+points(rda1,"wa", cex=0.8,pch=16,col=mycols[meso_fit$Trt])
+# Add a circle around the points
+ordiellipse(ord = rda1, mycols[meso_fit$Trt], kind="se", conf=0.95, lwd=2,label =FALSE,draw = "polygon", col=paste(mycols), border=paste(mycols),lty=c(1) ,alpha=63)
+# Add lines from the Centroid 
+ordispider(rda1, meso_fit$Trt, lwd=1,label =FALSE,col=paste(mycols),cex=.5)
+# Add a legend
+legend("topleft", legend = levels(meso_fit$Trt), bty = "n",
+       col = mycols, pch = 21, pt.bg = mycols,)
