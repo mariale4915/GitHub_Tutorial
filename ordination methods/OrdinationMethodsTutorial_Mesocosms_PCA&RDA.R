@@ -321,3 +321,62 @@ ggsave("figures/pcoa_time.png", plot=last_plot(), device=NULL, path=NULL, scale=
 meso_sub_time_ad <- adonis(meso_sub_time[,-c(1:4)] ~Trt+Time, method = "bray", data = meso_sub_time, perm=1000, set.seed=42)
 
 meso_sub_time_ad 
+
+# Question 5 ####
+install.packages ("moments")
+library (moments)
+
+
+# Here, I filter to just include the 22C treatment
+med <- filter(meso_all,Trt =="22C")
+
+#Then, I find the range.
+range(med[,c(5:50)])
+
+# Then I repeat the process with the 4C treatment
+low <- filter(meso_fit,Trt =="4C")
+range(low[,c(5:50)])
+
+# Then the 32C treatment
+high <- filter(meso_fit,Trt =="32C")
+range(high[,c(5:50)])
+
+# The widest range occurred at 4C, indicating cold was most selective!
+# Good to know for my research :)
+
+# I couldn't figure out how to get the standard deviation or skewness to work.
+# Once I figure those out, I'll run the ANOVA.
+
+
+# Question 8 ####
+
+# Similar to the code above, I filter by time, then find the range.
+t1 <- filter(meso_all,Time =="2wk")
+range(t1[,c(5:50)])
+
+t2 <- filter(meso_all,Time =="2.5m")
+range(t2[,c(5:50)])
+
+t3 <- filter(meso_all,Time =="6m")
+range(t3[,c(5:50)])
+
+
+# Here is a summary of the ranges of the temperature treatments
+# and the time treatments.
+my_summary <- list("Temp Fitness Range" =
+                     list("22C" = range(med[,c(5:50)]),
+                          "4C"  = range(low[,c(5:50)]),
+                          "32C" = range(high[,c(5:50)])),
+                   "Time Fitness Range" = 
+                     list("2wk"  = range(t1[,c(5:50)]),
+                          "2.5m" = range(t2[,c(5:50)]),
+                          "6m"   = range(t3[,c(5:50)]))
+)
+
+# Temperature had a bigger effect on strain fitness than time.
+
+# Should I run an ANOVA? I couldn't figure out how to do it, but will work on it.
+
+
+
+
